@@ -1,0 +1,10 @@
+# dev & test tooling (not part of the deliverable)
+node_modules/
+vendor/
+package.json
+package-lock.json
+make_artifact.py
+scratchpad_test*.mjs
+garden.artifact.html
+shot_*.png
+scratchpad_shot.png

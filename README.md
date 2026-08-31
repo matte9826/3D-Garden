@@ -6,7 +6,16 @@ Il progetto gira nel browser (nessuna installazione) ed è pensato per essere na
 
 ## 🔗 Anteprima live
 
-> _Il link comparirà qui appena la webpage sarà online (GitHub Pages)._
+- **Aggiornata ad ogni iterazione (istantanea):** https://claude.ai/code/artifact/5762de8c-1595-4869-8e9b-429d183250a0
+- **Il tuo dominio (GitHub Pages):** da attivare una volta sola — vedi sotto.
+
+### Attivare GitHub Pages (il tuo dominio personale)
+1. Vai su **Settings → Pages** del repo
+2. In *Source* scegli **Deploy from a branch**
+3. Branch: `claude/garden-3d-model-hqb1n1`, cartella `/ (root)` → **Save**
+4. Dopo ~1 minuto il giardino sarà su `https://matte9826.github.io/3D-Garden/`
+
+> La scena è un unico file `index.html` (Three.js da CDN): funziona anche aprendola in locale con doppio clic.
 
 ## 📁 Come caricare il materiale di riferimento
 
@@ -35,9 +44,15 @@ reference/
 ## 📌 Stato del progetto
 
 - [x] Setup repository e struttura cartelle
-- [ ] Raccolta materiale di riferimento (foto / video / planimetria)
-- [ ] Scheletro scena 3D + webpage live
-- [ ] Ricostruzione layout dalla planimetria
-- [ ] Modellazione elementi (aiuole, piante, vialetti, arredi)
-- [ ] Texture e illuminazione realistiche
-- [ ] Rifinitura e ottimizzazione
+- [x] Raccolta materiale di riferimento (22 foto + 2 video + planimetria catastale)
+- [x] **v0.1 — Scheletro 3D navigabile + webpage live** (villa, ala rosa, torretta, nocciolo, oleandri, cipressi, pino, palme, siepi, muro a secco, vialetto, corrimano, nastro di cantiere; sole regolabile; modalità orbita/cammina)
+- [ ] v0.2 — Layout in scala reale dalla planimetria (con misure + orientamento nord)
+- [ ] v0.3 — Texture fotografiche reali estratte dalle foto (intonaci, pietra, foglie)
+- [ ] v0.4 — Chiome realistiche (foglie vere) e prato dettagliato
+- [ ] v0.5 — Arredi, dettagli, ottimizzazione mobile
+
+### Controlli
+- **Orbita** (default): trascina per ruotare, rotella per zoom, tasto destro per spostarti
+- **Cammina**: pulsante *Cammina* → `W A S D` + mouse, `Esc` per uscire
+- **Ora del giorno**: slider in alto a destra (dall'alba al tramonto)
+- **Punti di vista**: i pulsanti in basso a destra

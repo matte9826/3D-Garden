@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Giardino di Via Nullo</title>
+<meta name="description" content="Ricostruzione 3D interattiva del giardino di una villa d'epoca a Genova.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,400&family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ink:#1b1e18;
+    --panel:rgba(24,27,21,0.72);
+    --panel-solid:#181b15;
+    --line:rgba(233,221,193,0.16);
+    --line-strong:rgba(233,221,193,0.30);
+    --crema:#E7DCC2;
+    --text:#EDE7D6;
+    --muted:#A7A390;
+    --green:#3E6B4F;
+    --green-deep:#20402f;
+    --terra:#C15C3A;
+    --hazard:#DA3A2C;
+    --shadow:0 10px 34px rgba(0,0,0,0.42);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);color:var(--text);
+    font-family:"Archivo",system-ui,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+
+  /* ---------- Loading ---------- */
+  #loader{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:20px;background:radial-gradient(120% 120% at 50% 30%,#2a2f24 0%,#14170f 70%);transition:opacity .8s ease}
+  #loader.hidden{opacity:0;pointer-events:none}
+  .l-mark{font-family:"Fraunces",serif;font-size:clamp(26px,5vw,44px);letter-spacing:.01em;color:var(--crema)}
+  .l-mark em{font-style:italic;color:var(--terra)}
+  .l-sub{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted)}
+  .l-bar{width:min(280px,60vw);height:2px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+  .l-bar i{display:block;height:100%;width:38%;background:linear-gradient(90deg,var(--terra),var(--crema));
+    animation:slide 1.15s ease-in-out infinite}
+  @keyframes slide{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}
+
+  /* ---------- Shared panel styling ---------- */
+  .panel{position:fixed;z-index:20;background:var(--panel);backdrop-filter:blur(11px) saturate(1.1);
+    -webkit-backdrop-filter:blur(11px) saturate(1.1);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow)}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
+
+  /* ---------- Title cartouche ---------- */
+  #title{top:16px;left:16px;padding:14px 18px 13px;max-width:min(78vw,340px)}
+  #title h1{margin:.18em 0 .12em;font-family:"Fraunces",serif;font-weight:500;font-size:22px;line-height:1.06;letter-spacing:.005em}
+  #title h1 em{font-style:italic;color:var(--terra);font-weight:400}
+  #title .meta{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:.02em;margin-top:2px}
+  #title .tag{display:inline-block;margin-top:9px;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--crema);border:1px solid var(--line-strong);border-radius:100px;padding:3px 9px}
+
+  /* ---------- Controls hint ---------- */
+  #hint{left:16px;bottom:16px;padding:11px 14px;font-size:12px;color:var(--muted);line-height:1.55;max-width:260px}
+  #hint b{color:var(--text);font-weight:600}
+  #hint kbd{font-family:"IBM Plex Mono",monospace;font-size:10.5px;background:rgba(255,255,255,.08);
+    border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--crema)}
+
+  /* ---------- Viewpoint chips ---------- */
+  #views{right:16px;bottom:16px;padding:9px;display:flex;flex-wrap:wrap;gap:6px;max-width:min(70vw,420px);justify-content:flex-end}
+  .chip{font-family:"Archivo",sans-serif;font-weight:600;font-size:12px;letter-spacing:.01em;color:var(--text);
+    background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:100px;padding:7px 13px;cursor:pointer;
+    transition:background .18s,border-color .18s,transform .18s}
+  .chip:hover{background:rgba(255,255,255,.10);border-color:var(--line-strong)}
+  .chip.active{background:var(--terra);border-color:var(--terra);color:#1c130e}
+  .chip:focus-visible{outline:2px solid var(--crema);outline-offset:2px}
+
+  /* ---------- Top-right controls ---------- */
+  #tools{top:16px;right:16px;padding:12px 13px 13px;width:196px;display:flex;flex-direction:column;gap:11px}
+  #tools .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .tbtn{flex:1;font-family:"Archivo",sans-serif;font-weight:600;font-size:12px;color:var(--text);
+    background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:8px 6px;cursor:pointer;
+    transition:background .18s,border-color .18s}
+  .tbtn:hover{background:rgba(255,255,255,.10)}
+  .tbtn.on{background:var(--green);border-color:var(--green);color:#eafff0}
+  .field label{display:block;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:3px;border-radius:3px;
+    background:linear-gradient(90deg,var(--green-deep),var(--terra),#f0d9a6);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:var(--crema);border:2px solid #2a2b22;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--crema);border:2px solid #2a2b22}
+  .tval{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--crema)}
+
+  /* ---------- Compass ---------- */
+  #compass{position:fixed;z-index:20;right:18px;top:calc(16px + 150px);width:52px;height:52px;pointer-events:none;
+    display:none}
+  #compass svg{width:100%;height:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
+
+  /* ---------- Walk overlay ---------- */
+  #walkhelp{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;
+    background:rgba(10,12,8,.55);backdrop-filter:blur(2px)}
+  #walkhelp .card{background:var(--panel-solid);border:1px solid var(--line-strong);border-radius:16px;padding:26px 30px;
+    text-align:center;max-width:330px;box-shadow:var(--shadow)}
+  #walkhelp h2{font-family:"Fraunces",serif;font-weight:500;margin:0 0 6px;font-size:22px}
+  #walkhelp p{color:var(--muted);font-size:13px;line-height:1.6;margin:0 0 16px}
+  #walkhelp .go{font-family:"Archivo";font-weight:700;font-size:14px;background:var(--terra);color:#1c130e;border:none;
+    border-radius:10px;padding:11px 22px;cursor:pointer}
+  #crosshair{position:fixed;z-index:15;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;
+    background:rgba(255,255,255,.6);display:none;pointer-events:none}
+
+  @media (max-width:640px){
+    #tools{display:none}
+    #hint{display:none}
+    #title{max-width:70vw}
+    #views{max-width:88vw}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="loader">
+  <div class="l-mark">Giardino di <em>Via Nullo</em></div>
+  <div class="l-sub">Ricostruzione 3D · Genova</div>
+  <div class="l-bar"><i></i></div>
+</div>
+
+<div id="title" class="panel">
+  <div class="eyebrow">Rilievo · Corte esterna</div>
+  <h1>Giardino della <em>villa</em></h1>
+  <div class="meta">Via Francesco Nullo 4 — Genova</div>
+  <span class="tag" id="verTag">v0.1 · blockout</span>
+</div>
+
+<div id="tools" class="panel">
+  <div class="field">
+    <label>Ora del giorno</label>
+    <input id="sun" type="range" min="0" max="100" value="62">
+    <div class="row" style="margin-top:6px"><span class="eyebrow">Luce</span><span class="tval" id="sunVal">pomeriggio</span></div>
+  </div>
+  <div class="row">
+    <button class="tbtn" id="modeOrbit">Orbita</button>
+    <button class="tbtn" id="modeWalk">Cammina</button>
+  </div>
+</div>
+
+<div id="compass"><svg viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="46" fill="rgba(24,27,21,.7)" stroke="rgba(233,221,193,.3)" stroke-width="2"/>
+  <g id="needle">
+    <polygon points="50,12 44,52 56,52" fill="#DA3A2C"/>
+    <polygon points="50,88 44,52 56,52" fill="#E7DCC2"/>
+  </g>
+  <text x="50" y="26" text-anchor="middle" font-family="IBM Plex Mono" font-size="13" fill="#EDE7D6">N</text>
+</svg></div>
+
+<div id="hint" class="panel">
+  <b>Trascina</b> per ruotare · <b>rotella</b> per zoom · <b>tasto destro</b> per spostarti.
+  In modalità <b>Cammina</b>: <kbd>W A S D</kbd> + mouse.
+</div>
+
+<div id="views" class="panel"></div>
+
+<div id="crosshair"></div>
+<div id="walkhelp"><div class="card">
+  <h2>Modalità cammina</h2>
+  <p>Muoviti con <b>W A S D</b> e guardati intorno col mouse. Premi <b>Esc</b> per uscire.</p>
+  <button class="go" id="walkGo">Entra nel giardino</button>
+</div></div>
+
+<!-- three.js r128 (global build) + addons, from an allowed CDN -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Sky.js"></script>
+<script>
+"use strict";
+(function(){
+if(typeof THREE==="undefined"){
+  document.getElementById("loader").innerHTML='<div class="l-mark">Impossibile caricare la libreria 3D</div>';
+  return;
+}
+
+/* =========================================================================
+   GIARDINO DI VIA NULLO — ricostruzione 3D (blockout V0)
+   Coordinate: +X est, +Z sud  →  nord = -Z. Unità = metri.
+   ========================================================================= */
+
+const D2R = Math.PI/180;
+const rand = (a,b)=>a+Math.random()*(b-a);
+const pick = arr=>arr[(Math.random()*arr.length)|0];
+
+// ---- palette del luogo -------------------------------------------------
+const COL = {
+  crema:0xe4d9bd, cremaHi:0xefe7d0, cremaShadow:0xcdbf9d,
+  pink:0xe0b3a3, pinkHi:0xecc9bc,
+  green:0x2f5d43, greenDk:0x1f3f2d,
+  white:0xf3ecdc, stone:0x8f8a7a, stoneDk:0x6f6a5b,
+  slate:0x565b5c, terra:0x9a5b3f, iron:0x2b2f2c,
+  glass:0x30403f, wood:0x5c4a37,
+  leafA:0x3f6b2e, leafB:0x2f5324, leafC:0x517b34, leafDk:0x22401d,
+  cypress:0x243d27, oleander:0x335a3c, palm:0x4a6d33, earth:0x9a7b52, earthDk:0x7c6140,
+  hazard:0xd63a2c
+};
+
+// ---- renderer ----------------------------------------------------------
+const app = document.getElementById("app");
+const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:"high-performance"});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.95;
+renderer.physicallyCorrectLights = true;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xb9c2bf, 120, 420);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 2000);
+camera.position.set(13, 12, 33);
+
+// ---- lights ------------------------------------------------------------
+const hemi = new THREE.HemisphereLight(0xbcd0f2, 0x3c3524, 0.35);
+scene.add(hemi);
+
+const sun = new THREE.DirectionalLight(0xfff2d8, 3.1);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 220;
+sun.shadow.camera.left=-70; sun.shadow.camera.right=70;
+sun.shadow.camera.top=70; sun.shadow.camera.bottom=-70;
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.03;
+scene.add(sun);
+scene.add(sun.target);
+
+// ---- Sky + environment -------------------------------------------------
+const sky = new THREE.Sky();
+sky.scale.setScalar(12000);
+scene.add(sky);
+const skyU = sky.material.uniforms;
+skyU.turbidity.value = 2.4;
+skyU.rayleigh.value = 2.4;
+skyU.mieCoefficient.value = 0.005;
+skyU.mieDirectionalG.value = 0.85;
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+let envRT = null;
+const sunSph = new THREE.Vector3();
+
+function setSun(t){ // t in 0..1  → morning..evening
+  const elev = Math.sin(t*Math.PI)*58 + 3;          // arc: low→high→low
+  const azim = 60 + t*150;                            // sweep across sky
+  const phi = (90-elev)*D2R, theta = azim*D2R;
+  sunSph.setFromSphericalCoords(1, phi, theta);
+  skyU.sunPosition.value.copy(sunSph);
+  sun.position.copy(sunSph).multiplyScalar(120);
+  const warm = 1 - Math.min(1, elev/40);             // warmer near horizon
+  sun.color.setHSL(0.09 - warm*0.03, 0.55+warm*0.25, 0.62);
+  sun.intensity = 1.6 + Math.min(1,elev/30)*2.4;
+  hemi.intensity = 0.25 + Math.min(1,elev/50)*0.30;
+  skyU.turbidity.value = 2.2 + warm*4;
+  skyU.rayleigh.value = 2.4 - warm*1.0;
+  const fogc = new THREE.Color().setHSL(0.34-warm*0.24, 0.14+warm*0.22, 0.70-warm*0.20);
+  scene.fog.color.copy(fogc);
+  renderer.toneMappingExposure = 0.66 + Math.min(1,elev/40)*0.22;
+  refreshEnv();
+}
+let envPending=false;
+function refreshEnv(){
+  if(envPending) return; envPending=true;
+  requestAnimationFrame(()=>{
+    envPending=false;
+    const s = new THREE.Scene(); const sk = sky.clone(); s.add(sk);
+    if(envRT) envRT.dispose();
+    envRT = pmrem.fromScene(s, 0.04);
+    scene.environment = envRT.texture;
+  });
+}
+
+// ---- procedural textures ----------------------------------------------
+function cnv(w,h){const c=document.createElement("canvas");c.width=w;c.height=h;return c;}
+function tex(canvas,repeat){const t=new THREE.CanvasTexture(canvas);t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  if(repeat)t.repeat.set(repeat[0],repeat[1]);t.anisotropy=4;t.encoding=THREE.sRGBEncoding;return t;}
+
+function stuccoTex(hex, mottle){
+  const c=cnv(256,256), x=c.getContext("2d"), base=new THREE.Color(hex);
+  x.fillStyle="#"+base.getHexString(); x.fillRect(0,0,256,256);
+  for(let i=0;i<2600;i++){
+    const l=(Math.random()-0.5)*mottle;
+    const col=base.clone().offsetHSL(0,0,l);
+    x.fillStyle="rgba("+(col.r*255|0)+","+(col.g*255|0)+","+(col.b*255|0)+","+(0.05+Math.random()*0.08)+")";
+    const r=1+Math.random()*3; x.beginPath();x.arc(Math.random()*256,Math.random()*256,r,0,7);x.fill();
+  }
+  return tex(c);
+}
+function grassTex(){
+  const c=cnv(512,512),x=c.getContext("2d");
+  x.fillStyle="#6f7a42";x.fillRect(0,0,512,512);
+  for(let i=0;i<20000;i++){
+    const g=["#586a30","#6f8040","#879a52","#4f5e2c","#9a8a54","#7c6a3e"][(Math.random()*6)|0];
+    x.strokeStyle=g;x.globalAlpha=0.5+Math.random()*0.5;x.lineWidth=1;
+    const px=Math.random()*512,py=Math.random()*512,a=(-0.4+Math.random()*0.8);
+    x.beginPath();x.moveTo(px,py);x.lineTo(px+Math.sin(a)*4,py-3-Math.random()*4);x.stroke();
+  }
+  x.globalAlpha=1;
+  // bare dirt patches
+  for(let i=0;i<26;i++){
+    x.fillStyle="rgba(150,120,80,"+(0.15+Math.random()*0.3)+")";
+    x.beginPath();x.ellipse(Math.random()*512,Math.random()*512,rand(10,46),rand(8,32),Math.random()*6,0,7);x.fill();
+  }
+  return tex(c,[10,10]);
+}
+function louverTex(hex){
+  const c=cnv(64,128),x=c.getContext("2d"),base=new THREE.Color(hex);
+  x.fillStyle="#"+base.getHexString();x.fillRect(0,0,64,128);
+  for(let y=4;y<128;y+=6){
+    x.fillStyle="rgba(0,0,0,0.28)";x.fillRect(4,y,56,2);
+    x.fillStyle="rgba(255,255,255,0.10)";x.fillRect(4,y+2,56,1);
+  }
+  x.strokeStyle="rgba(0,0,0,0.35)";x.lineWidth=3;x.strokeRect(2,2,60,124);
+  return tex(c);
+}
+function stoneWallTex(){
+  const c=cnv(512,256),x=c.getContext("2d");
+  x.fillStyle="#5c5647";x.fillRect(0,0,512,256);
+  let y=0;
+  while(y<256){const h=rand(18,34);let xx=rand(-20,0);
+    while(xx<512){const w=rand(26,60);
+      const g=["#7d7660","#8b846c","#6a6352","#948c72","#5f5947"][(Math.random()*5)|0];
+      x.fillStyle=g;roundRect(x,xx+1.5,y+1.5,w-3,h-3,3);x.fill();
+      x.strokeStyle="rgba(0,0,0,0.35)";x.lineWidth=1.4;x.stroke();
+      xx+=w;}
+    y+=h;}
+  return tex(c,[4,2]);
+}
+function roundRect(x,px,py,w,h,r){x.beginPath();x.moveTo(px+r,py);x.arcTo(px+w,py,px+w,py+h,r);
+  x.arcTo(px+w,py+h,px,py+h,r);x.arcTo(px,py+h,px,py,r);x.arcTo(px,py,px+w,py,r);x.closePath();}
+function flagTex(){
+  const c=cnv(256,256),x=c.getContext("2d");x.fillStyle="#8b8474";x.fillRect(0,0,256,256);
+  x.strokeStyle="rgba(40,38,30,0.6)";x.lineWidth=3;
+  for(let i=0;i<6;i++){for(let j=0;j<6;j++){
+    const px=i*44+((j%2)*10),py=j*44;
+    x.fillStyle=["#938b78","#847c6a","#9c9482","#7d7563"][(Math.random()*4)|0];
+    roundRect(x,px+2,py+2,40,40,4);x.fill();x.stroke();
+  }}
+  return tex(c,[3,3]);
+}
+
+// shared materials
+const grassMat = new THREE.MeshStandardMaterial({map:grassTex(),roughness:1,metalness:0});
+const flagMat  = new THREE.MeshStandardMaterial({map:flagTex(),roughness:0.9});
+const stoneMat = new THREE.MeshStandardMaterial({map:stoneWallTex(),roughness:1});
+const whiteMat = new THREE.MeshStandardMaterial({color:COL.white,roughness:0.7});
+const ironMat  = new THREE.MeshStandardMaterial({color:COL.iron,roughness:0.5,metalness:0.6});
+const glassMat = new THREE.MeshStandardMaterial({color:COL.glass,roughness:0.15,metalness:0.1,envMapIntensity:1.2});
+const woodMat  = new THREE.MeshStandardMaterial({color:COL.wood,roughness:0.85});
+const slateMat = new THREE.MeshStandardMaterial({color:0x484d4d,roughness:0.82,envMapIntensity:0.35});
+const greenLouver = new THREE.MeshStandardMaterial({map:louverTex(0x2f5d43),roughness:0.6});
+const barkMat  = new THREE.MeshStandardMaterial({color:0x6a5237,roughness:0.95});
+
+// ---- ground ------------------------------------------------------------
+const GROUND = 320;
+const gGeo = new THREE.PlaneGeometry(GROUND,GROUND,120,120);
+gGeo.rotateX(-Math.PI/2);
+// gentle slope + undulation
+const gp = gGeo.attributes.position;
+for(let i=0;i<gp.count;i++){
+  const x=gp.getX(i), z=gp.getZ(i);
+  let h = -0.045*z;                                   // slope up toward south (back)
+  h += Math.sin(x*0.09)*Math.cos(z*0.11)*0.28;        // undulation
+  gp.setY(i,h);
+}
+gGeo.computeVertexNormals();
+const ground = new THREE.Mesh(gGeo, grassMat);
+ground.receiveShadow=true;
+scene.add(ground);
+function groundH(x,z){ return -0.045*z + Math.sin(x*0.09)*Math.cos(z*0.11)*0.28; }
+
+// =========================================================================
+//  BUILDING BUILDER
+// =========================================================================
+function makeShutters(w,h,arched){
+  const g=new THREE.Group();
+  const panelW=w/2*0.96, panelH=h;
+  for(const side of [-1,1]){
+    const open = Math.random()<0.45;
+    const p=new THREE.Mesh(new THREE.BoxGeometry(panelW,panelH,0.05), greenLouver.clone());
+    const hinge=new THREE.Group();
+    hinge.position.set(side*(w/2),0,0.10);
+    p.position.set(side*panelW/2,0,0);
+    hinge.add(p);
+    hinge.rotation.y = open ? side*-1.15 : 0;
+    g.add(hinge);
+  }
+  return g;
+}
+// window facing +Z in local space, origin at its center
+function makeWindow(w,h,arched){
+  const g=new THREE.Group();
+  const frame=new THREE.Mesh(new THREE.BoxGeometry(w+0.16,h+0.16,0.12), whiteMat);
+  frame.position.z=0.02; g.add(frame);
+  const recess=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.12), new THREE.MeshStandardMaterial({color:0x241f18,roughness:0.9}));
+  recess.position.z=-0.05; g.add(recess);
+  const glass=new THREE.Mesh(new THREE.PlaneGeometry(w-0.08,h-0.08), glassMat);
+  glass.position.z=-0.02; g.add(glass);
+  // muntins
+  const mv=new THREE.Mesh(new THREE.BoxGeometry(0.05,h-0.06,0.03), whiteMat); mv.position.z=0.01; g.add(mv);
+  const mh=new THREE.Mesh(new THREE.BoxGeometry(w-0.06,0.05,0.03), whiteMat); mh.position.set(0,h*0.1,0.01); g.add(mh);
+  if(arched){
+    const arch=new THREE.Mesh(new THREE.CylinderGeometry(w/2+0.08,w/2+0.08,0.12,20,1,false,0,Math.PI),
+      whiteMat);
+    arch.rotation.z=-Math.PI/2; arch.rotation.y=Math.PI/2; arch.position.set(0,h/2,0.02); g.add(arch);
+  }
+  const sill=new THREE.Mesh(new THREE.BoxGeometry(w+0.34,0.1,0.22), whiteMat);
+  sill.position.set(0,-h/2-0.08,0.08); g.add(sill);
+  g.add(makeShutters(w+0.14,h,arched));
+  return g;
+}
+
+// place windows on a face. face: 'S'|'N'|'E'|'W'
+function faceWindows(parent, face, wallW, baseY, floors, floorH, cols, opts){
+  opts=opts||{};
+  const inset = opts.z!==undefined?opts.z:0;
+  for(let f=0;f<floors;f++){
+    const arched = opts.archGround && f===0;
+    const wh = arched?1.9:1.5, ww=1.0;
+    const y = baseY + floorH*0.55 + f*floorH;
+    for(let c=0;c<cols;c++){
+      const frac = cols===1?0.5:(c+0.5)/cols;
+      const along = (frac-0.5)*wallW*0.9;
+      const win = makeWindow(ww,wh,arched);
+      switch(face){
+        case 'S': win.position.set(along,y,inset); break;
+        case 'N': win.position.set(-along,y,-inset); win.rotation.y=Math.PI; break;
+        case 'E': win.position.set(inset,y,-along); win.rotation.y=Math.PI/2; break;
+        case 'W': win.position.set(-inset,y,along); win.rotation.y=-Math.PI/2; break;
+      }
+      parent.add(win);
+    }
+  }
+}
+
+function stringCourse(parent, w, d, y){
+  const s=new THREE.Mesh(new THREE.BoxGeometry(w+0.2,0.22,d+0.2), whiteMat);
+  s.position.y=y; parent.add(s);
+}
+
+function hipRoof(w,d,h,over){
+  over=over||0.5;
+  const geo=new THREE.BufferGeometry();
+  const hw=w/2+over, hd=d/2+over, rw=w*0.12, rd=d*0.12;
+  const v=[
+    -hw,0,-hd,  hw,0,-hd,  hw,0,hd,  -hw,0,hd,   // eaves 0..3
+    -rw,h,-rd,  rw,h,-rd,  rw,h,rd,  -rw,h,rd     // ridge 4..7
+  ];
+  const idx=[0,1,5, 0,5,4,  1,2,6, 1,6,5,  2,3,7, 2,7,6,  3,0,4, 3,4,7,  4,5,6, 4,6,7];
+  geo.setAttribute("position",new THREE.Float32BufferAttribute(v,3));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return new THREE.Mesh(geo, slateMat);
+}
+
+function makeBuilding(o){
+  const g=new THREE.Group();
+  g.position.set(o.x,0,o.z);
+  if(o.ry) g.rotation.y=o.ry;
+  const w=o.w,d=o.d,h=o.h;
+  const wallMat=new THREE.MeshStandardMaterial({map:stuccoTex(o.color,0.5),roughness:0.94,envMapIntensity:0.55});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wallMat);
+  body.position.y=h/2; body.castShadow=true; body.receiveShadow=true;
+  g.add(body);
+  // base plinth
+  const base=new THREE.Mesh(new THREE.BoxGeometry(w+0.1,1.1,d+0.1), new THREE.MeshStandardMaterial({color:COL.cremaShadow,roughness:0.9}));
+  base.position.y=0.55; g.add(base);
+  // cornice + string courses
+  stringCourse(g,w,d,h-0.3);
+  const floors=o.floors||Math.max(1,Math.round(h/3.3));
+  const floorH=h/floors;
+  if(o.mid!==false) for(let f=1;f<floors;f++) stringCourse(g,w,d,f*floorH);
+  // corner quoins
+  for(const sx of [-1,1]) for(const sz of [-1,1]){
+    const q=new THREE.Mesh(new THREE.BoxGeometry(0.55,h-0.6,0.55), new THREE.MeshStandardMaterial({color:COL.cremaHi,roughness:0.85}));
+    q.position.set(sx*(w/2-0.05),h/2,sz*(d/2-0.05)); g.add(q);
+  }
+  // windows
+  const cf=o.colsFront||Math.max(2,Math.round(w/3.6));
+  if(o.faces.indexOf('S')>=0) faceWindows(g,'S',w,0,floors,floorH,cf,{z:d/2+0.03,archGround:o.arch});
+  if(o.faces.indexOf('N')>=0) faceWindows(g,'N',w,0,floors,floorH,cf,{z:d/2+0.03,archGround:o.arch});
+  const cs=o.colsSide||Math.max(2,Math.round(d/3.6));
+  if(o.faces.indexOf('E')>=0) faceWindows(g,'E',d,0,floors,floorH,cs,{z:w/2+0.03,archGround:o.arch});
+  if(o.faces.indexOf('W')>=0) faceWindows(g,'W',d,0,floors,floorH,cs,{z:w/2+0.03,archGround:o.arch});
+  // roof
+  if(o.roof!=="none"){
+    const r=hipRoof(w,d,o.roofH||2.4,0.6); r.position.y=h; r.castShadow=true; g.add(r);
+  }
+  scene.add(g);
+  return g;
+}
+
+// balcony strip with iron balusters (facing +Z), length L at y
+function balcony(parent,x,y,z,L){
+  const slab=new THREE.Mesh(new THREE.BoxGeometry(L,0.14,0.9), whiteMat);
+  slab.position.set(x,y,z+0.45); parent.add(slab);
+  const rail=new THREE.Group(); rail.position.set(x,y,z+0.85);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(L,0.06,0.06),ironMat); top.position.y=0.95; rail.add(top);
+  const n=Math.floor(L/0.18);
+  const bg=new THREE.CylinderGeometry(0.018,0.018,0.95,6);
+  const inst=new THREE.InstancedMesh(bg,ironMat,n); const m=new THREE.Matrix4();
+  for(let i=0;i<n;i++){m.makeTranslation(-L/2+i*0.18+0.09,0.48,0);inst.setMatrixAt(i,m);}
+  rail.add(inst); parent.add(rail);
+}
+
+// polygonal turret with pyramidal roof, attached facing +Z
+function turret(x,y,z,r,h){
+  const g=new THREE.Group(); g.position.set(x,0,z);
+  const wallMat=new THREE.MeshStandardMaterial({map:stuccoTex(COL.cremaHi,0.4),roughness:0.9});
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,6), wallMat);
+  body.position.y=y+h/2; body.castShadow=true; g.add(body);
+  const roof=new THREE.Mesh(new THREE.CylinderGeometry(0.05,r*1.16,r*1.5,6), slateMat);
+  roof.position.y=y+h+r*0.75; roof.castShadow=true; g.add(roof);
+  for(let i=0;i<3;i++){
+    const win=makeWindow(0.7,1.5,true);
+    const a=(-1+i)*(Math.PI/3.2);
+    win.position.set(Math.sin(a)*(r+0.02),y+h*0.55,Math.cos(a)*(r+0.02));
+    win.rotation.y=a; g.add(win);
+  }
+  scene.add(g); return g;
+}
+
+// =========================================================================
+//  VEGETATION
+// =========================================================================
+function foliageMass(radius, tones, squash){
+  const g=new THREE.IcosahedronGeometry(radius,3);
+  const p=g.attributes.position;
+  const col=[];
+  const c0=new THREE.Color();
+  const nrm=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){
+    const vx=p.getX(i),vy=p.getY(i),vz=p.getZ(i);
+    nrm.set(vx,vy,vz).normalize();
+    // low-frequency lobes (soft) + tiny high-freq ripple → cloud-like, not shards
+    const lobe=0.86 + 0.14*Math.sin(nrm.x*2.3+nrm.y*3.1)*Math.cos(nrm.z*2.7);
+    const rip=1+ (Math.random()-0.5)*0.06;
+    const n=lobe*rip;
+    p.setXYZ(i,vx*n,vy*n*(squash||1),vz*n);
+    c0.set(pick(tones)).offsetHSL(0,0,(Math.random()-0.5)*0.07);
+    col.push(c0.r,c0.g,c0.b);
+  }
+  g.computeVertexNormals();
+  g.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
+  return g;
+}
+const foliageMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.96,flatShading:false,envMapIntensity:0.4});
+
+function treeHazel(x,z,scale){ // big multi-stem shrub-tree (nocciolo)
+  scale=scale||1;
+  const g=new THREE.Group(); g.position.set(x,groundH(x,z),z);
+  const stems=5+((Math.random()*3)|0);
+  for(let i=0;i<stems;i++){
+    const a=(i/stems)*6.28, lean=rand(0.05,0.22);
+    const hgt=rand(3.2,4.6)*scale;
+    const s=new THREE.Mesh(new THREE.CylinderGeometry(0.06*scale,0.16*scale,hgt,6), barkMat);
+    s.position.set(Math.cos(a)*0.3,hgt/2,Math.sin(a)*0.3);
+    s.rotation.z=Math.cos(a)*lean; s.rotation.x=-Math.sin(a)*lean; s.castShadow=true; g.add(s);
+  }
+  const canopy=new THREE.Mesh(foliageMass(2.9*scale,[COL.leafA,COL.leafB,COL.leafC],0.92), foliageMat);
+  canopy.position.y=4.3*scale; canopy.castShadow=true; g.add(canopy);
+  for(let i=0;i<4;i++){
+    const lobe=new THREE.Mesh(foliageMass(1.5*scale,[COL.leafA,COL.leafC,COL.leafDk],1), foliageMat);
+    lobe.position.set(rand(-2.2,2.2)*scale,rand(2.6,4.4)*scale,rand(-2.2,2.2)*scale); lobe.castShadow=true; g.add(lobe);
+  }
+  scene.add(g); breezy.push(g); return g;
+}
+function treeCypress(x,z,h){
+  h=h||rand(9,13);
+  const g=new THREE.Group(); g.position.set(x,groundH(x,z),z);
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.2,h*0.4,6),barkMat); trunk.position.y=h*0.2; g.add(trunk);
+  // smooth tapered column with mild surface noise
+  const geo=new THREE.ConeGeometry(h*0.11,h,10,10);
+  const p=geo.attributes.position, col=[], c0=new THREE.Color();
+  const tones=[COL.cypress,0x2b482e,0x1c331f,0x314f34];
+  for(let i=0;i<p.count;i++){
+    const vy=p.getY(i);
+    const bulge=1+Math.sin(vy*1.4+p.getX(i)*3)*0.06+ (Math.random()-0.5)*0.05;
+    p.setX(i,p.getX(i)*bulge); p.setZ(i,p.getZ(i)*bulge);
+    c0.set(pick(tones)).offsetHSL(0,0,(Math.random()-0.5)*0.05); col.push(c0.r,c0.g,c0.b);
+  }
+  geo.computeVertexNormals(); geo.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
+  const body=new THREE.Mesh(geo,foliageMat);
+  body.position.y=h*0.5+h*0.05; body.castShadow=true; g.add(body);
+  scene.add(g); breezy.push(g); return g;
+}
+function treePine(x,z){ // pino domestico: bare trunk + flat umbrella
+  const h=rand(12,15);
+  const g=new THREE.Group(); g.position.set(x,groundH(x,z),z);
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.45,h,7),new THREE.MeshStandardMaterial({color:0x7a5236,roughness:0.95}));
+  trunk.position.y=h/2; trunk.rotation.z=rand(-0.05,0.05); trunk.castShadow=true; g.add(trunk);
+  for(let i=0;i<5;i++){
+    const cap=new THREE.Mesh(foliageMass(rand(2.6,3.6),[0x33512b,0x3e5c32,0x223a1e],0.42),foliageMat);
+    cap.position.set(rand(-1.6,1.6),h-rand(0,1.6),rand(-1.6,1.6)); cap.castShadow=true; g.add(cap);
+  }
+  scene.add(g); breezy.push(g); return g;
+}
+function oleander(x,z){ // potato ad alberello (lollipop)
+  const h=rand(2.2,3.2);
+  const g=new THREE.Group(); g.position.set(x,groundH(x,z),z);
+  const t=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.11,h,6),barkMat); t.position.y=h/2; t.castShadow=true; g.add(t);
+  const ball=new THREE.Mesh(foliageMass(rand(1.1,1.5),[COL.oleander,0x4d7a56,0x35603f],1),foliageMat);
+  ball.position.y=h+0.3; ball.castShadow=true; g.add(ball);
+  // sparse pink blooms
+  if(Math.random()<0.7){
+    const blooms=new THREE.InstancedMesh(new THREE.SphereGeometry(0.08,5,4),
+      new THREE.MeshStandardMaterial({color:0xe58bb0,roughness:0.7}),14);
+    const m=new THREE.Matrix4();
+    for(let i=0;i<14;i++){const a=Math.random()*6.28,b=Math.random()*3.14,r=rand(0.9,1.4);
+      m.makeTranslation(Math.sin(b)*Math.cos(a)*r,h+0.3+Math.cos(b)*r,Math.sin(b)*Math.sin(a)*r);blooms.setMatrixAt(i,m);}
+    g.add(blooms);
+  }
+  scene.add(g); breezy.push(g); return g;
+}
+function palm(x,z){ // palm / cycad clump
+  const g=new THREE.Group(); g.position.set(x,groundH(x,z),z);
+  const t=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.28,1.4,7),new THREE.MeshStandardMaterial({color:0x6b5a3c,roughness:1}));
+  t.position.y=0.7; g.add(t);
+  const frondMat=new THREE.MeshStandardMaterial({color:COL.palm,roughness:0.85,side:THREE.DoubleSide});
+  for(let i=0;i<12;i++){
+    const a=(i/12)*6.28;
+    const fr=new THREE.Mesh(new THREE.PlaneGeometry(0.35,rand(2.2,3.2)),frondMat);
+    fr.position.set(Math.cos(a)*0.2,1.5,Math.sin(a)*0.2);
+    fr.rotation.set(rand(0.5,1.0),-a,0); fr.castShadow=true; g.add(fr);
+  }
+  scene.add(g); breezy.push(g); return g;
+}
+function shrub(x,z,r){
+  r=r||rand(0.7,1.2);
+  const g=new THREE.Mesh(foliageMass(r,[0x3a5a28,0x466a30,0x2c4a22],0.8),foliageMat);
+  g.position.set(x,groundH(x,z)+r*0.6,z); g.castShadow=true; scene.add(g); breezy.push(g); return g;
+}
+// hedge: run of clipped box between two points
+function hedge(x1,z1,x2,z2,height,depth){
+  height=height||1.6; depth=depth||0.9;
+  const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),ang=Math.atan2(dx,dz);
+  const geo=new THREE.BoxGeometry(depth,height,len,3,2,Math.max(2,len|0));
+  const p=geo.attributes.position;
+  for(let i=0;i<p.count;i++){ // rough the top & sides
+    if(p.getY(i)>0.1){p.setX(i,p.getX(i)+rand(-0.09,0.09));p.setZ(i,p.getZ(i)+rand(-0.12,0.12));p.setY(i,p.getY(i)+rand(-0.08,0.08));}
+  }
+  geo.computeVertexNormals();
+  const col=[];const c0=new THREE.Color();
+  for(let i=0;i<p.count;i++){c0.set(pick([0x335126,0x3f6330,0x28431f,0x4a7133])).offsetHSL(0,0,(Math.random()-0.5)*0.06);col.push(c0.r,c0.g,c0.b);}
+  geo.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
+  const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.96,envMapIntensity:0.4}));
+  m.position.set((x1+x2)/2,groundH((x1+x2)/2,(z1+z2)/2)+height/2,(z1+z2)/2);
+  m.rotation.y=ang; m.castShadow=true; m.receiveShadow=true; scene.add(m); breezy.push(m); return m;
+}
+
+const breezy=[]; // things that gently sway
+
+// =========================================================================
+//  SITE FEATURES
+// =========================================================================
+// iron railing on low wall between two points
+function railing(x1,z1,x2,z2,h){
+  h=h||1.3;
+  const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),ang=Math.atan2(dx,dz);
+  const g=new THREE.Group();
+  const wall=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.7,len),new THREE.MeshStandardMaterial({color:COL.stoneDk,roughness:1}));
+  wall.position.y=0.35; wall.castShadow=true; wall.receiveShadow=true; g.add(wall);
+  const rail=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,len),ironMat); rail.position.y=0.7+h; g.add(rail);
+  const n=Math.floor(len/0.16);
+  const inst=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.016,0.016,h,5),ironMat,n);
+  const m=new THREE.Matrix4();
+  for(let i=0;i<n;i++){m.makeTranslation(0,0.7+h/2,-len/2+i*0.16+0.08);inst.setMatrixAt(i,m);}
+  g.add(inst);
+  g.position.set((x1+x2)/2,groundH((x1+x2)/2,(z1+z2)/2),(z1+z2)/2); g.rotation.y=ang; scene.add(g); return g;
+}
+// dry-stone retaining wall
+function dryWall(x1,z1,x2,z2,h){
+  h=h||2.6;
+  const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),ang=Math.atan2(dx,dz);
+  const w=new THREE.Mesh(new THREE.BoxGeometry(0.5,h,len),stoneMat.clone());
+  w.material.map=stoneWallTex(); w.material.map.repeat.set(len/6,h/3);
+  w.position.set((x1+x2)/2,groundH((x1+x2)/2,(z1+z2)/2)+h/2,(z1+z2)/2); w.rotation.y=ang;
+  w.castShadow=true; w.receiveShadow=true; scene.add(w); return w;
+}
+// flagstone path strip
+function path(x,z,w,l,ry){
+  const p=new THREE.Mesh(new THREE.BoxGeometry(w,0.12,l),flagMat.clone());
+  p.material.map=flagTex(); p.material.map.repeat.set(w/1.5,l/1.5);
+  p.position.set(x,groundH(x,z)+0.06,z); if(ry)p.rotation.y=ry; p.receiveShadow=true; scene.add(p);
+  return p;
+}
+// green handrail (posts + top tube)
+function handrail(x1,z1,x2,z2){
+  const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),ang=Math.atan2(dx,dz);
+  const g=new THREE.Group();
+  const mat=new THREE.MeshStandardMaterial({color:0x33503a,roughness:0.5,metalness:0.4});
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,len,8),mat);
+  top.rotation.x=Math.PI/2; top.position.y=0.95; g.add(top);
+  const n=Math.max(2,Math.floor(len/2));
+  for(let i=0;i<n;i++){const post=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.95,7),mat);
+    post.position.set(0,0.47,-len/2+i*(len/(n-1))); g.add(post);}
+  g.position.set((x1+x2)/2,groundH((x1+x2)/2,(z1+z2)/2),(z1+z2)/2); g.rotation.y=ang; scene.add(g); return g;
+}
+// red-white hazard tape along a polyline of [x,z] points, at height y
+function hazardTape(pts,y){
+  y=y||0.9;
+  const mat=new THREE.MeshStandardMaterial({map:hazardStripeTex(),roughness:0.7,side:THREE.DoubleSide,transparent:true});
+  for(let i=0;i<pts.length-1;i++){
+    const [x1,z1]=pts[i],[x2,z2]=pts[i+1];
+    const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),ang=Math.atan2(dx,dz);
+    const strip=new THREE.Mesh(new THREE.PlaneGeometry(len,0.07),mat);
+    strip.material.map=strip.material.map; // shared
+    const mx=(x1+x2)/2,mz=(z1+z2)/2;
+    strip.position.set(mx,groundH(mx,mz)+y,mz); strip.rotation.y=ang+Math.PI/2; scene.add(strip);
+    // rebar post at each vertex
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,y+0.25,5),new THREE.MeshStandardMaterial({color:0x555148,roughness:0.7,metalness:0.5}));
+    post.position.set(x1,groundH(x1,z1)+(y+0.25)/2,z1); scene.add(post);
+  }
+}
+let _hazTex=null;
+function hazardStripeTex(){
+  if(_hazTex)return _hazTex;
+  const c=cnv(64,16),x=c.getContext("2d");
+  for(let i=-2;i<10;i++){x.fillStyle=(i%2)?"#e9e3d5":"#d33a2c";x.beginPath();
+    x.moveTo(i*8,0);x.lineTo(i*8+8,0);x.lineTo(i*8+16,16);x.lineTo(i*8+8,16);x.closePath();x.fill();}
+  _hazTex=tex(c,[1,1]); _hazTex.wrapS=THREE.RepeatWrapping; return _hazTex;
+}
+
+// =========================================================================
+//  COMPOSE THE SCENE
+// =========================================================================
+// Main villa (crema, 4 storeys) along the north edge, garden face = +Z (south)
+const villa = makeBuilding({
+  x:0, z:-9, w:26, d:13, h:15.5, floors:4, color:COL.crema,
+  faces:['S','E','W'], colsFront:6, colsSide:3, arch:true, roofH:3.2
+});
+balcony(villa,0,4.0,6.5,12);
+turret(6.5,0,-2.2,1.5,11.5);   // polygonal bay on garden side
+
+// Pink lower wing (2 storeys) on the west, running south; garden face = +X (east)
+const wing = makeBuilding({
+  x:-16.5, z:2, w:9, d:14, h:8.2, floors:2, color:COL.pink,
+  faces:['E','S','N'], colsFront:3, colsSide:2, arch:false, roofH:2.6
+});
+// chimney
+(function(){const ch=new THREE.Mesh(new THREE.BoxGeometry(1,2.2,1),new THREE.MeshStandardMaterial({color:COL.pinkHi,roughness:0.9}));
+ ch.position.set(-18,9.4,-1);ch.castShadow=true;scene.add(ch);})();
+
+// Neighbour massing (kept simple, muted, pushed back as backdrop)
+makeBuilding({x:27,z:20,w:12,d:16,h:16,floors:6,color:0xc9b393,faces:['W','N'],colsFront:3,colsSide:4,roofH:1.2,roof:'none'});
+makeBuilding({x:-4,z:38,w:22,d:12,h:15,floors:6,color:0xc7ae98,faces:['N'],colsFront:6,roof:'none'});
+
+// Flagstone path + green handrail along the pink wing (east base)
+path(-11.4,4,2.4,15,0);
+handrail(-10.4,-3,-10.4,12);
+
+// Boundary: iron railing on low wall (garden edge near wing), dry-stone wall at back
+railing(-10,-4,-10,10,1.25);
+dryWall(-9,20,10,21,2.7);
+dryWall(10,21,17,17,2.7);
+
+// =========================================================================
+//  PLANTING
+// =========================================================================
+treeHazel(1,10,1.15);           // the central multi-stem hazel
+treeHazel(-4,16,0.8);
+treeCypress(12,19.5,12); treeCypress(14,19,11); treeCypress(15.6,19.8,10.5);
+treePine(18,18);
+palm(16.5,17.5); palm(-7,19);
+oleander(-8,2); oleander(-8.5,6); oleander(12,7); oleander(13.5,10); oleander(-2,4); oleander(16,12);
+// pittosporum hedge lines
+hedge(6,15, 17,13, 1.7,1.0);   // hedge toward east neighbour
+hedge(-9,-3, -9,11, 1.5,0.9);  // low hedge along the railing
+shrub(-6,3); shrub(-5,7,0.9); shrub(14,8); shrub(15,10,1.1); shrub(-1,17,1.3); shrub(10,10);
+shrub(-7.5,10,0.8); shrub(17,15,1.2); shrub(4,17,1.0);
+
+// instanced grass tufts over the open lawn (foreground richness)
+(function(){
+  const blade=new THREE.PlaneGeometry(0.16,0.5); blade.translate(0,0.25,0);
+  const N=4200;
+  const mat=new THREE.MeshStandardMaterial({color:0x5f7238,roughness:1,side:THREE.DoubleSide,
+    transparent:true,alphaTest:0.4,map:bladeTex()});
+  const im=new THREE.InstancedMesh(blade,mat,N);
+  const m=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(),p=new THREE.Vector3(),e=new THREE.Euler();
+  const col=new THREE.Color(); let k=0;
+  for(let i=0;i<N;i++){
+    const x=rand(-9,17), z=rand(-2,20);
+    // skip building footprints
+    if(x<-11.5 && z<9) continue;
+    p.set(x,groundH(x,z),z);
+    e.set(0,Math.random()*6.28,rand(-0.15,0.15)); q.setFromEuler(e);
+    const sc=rand(0.6,1.5); s.set(sc,sc*rand(0.8,1.4),sc);
+    m.compose(p,q,s); im.setMatrixAt(k, m);
+    col.set(pick([0x5f7238,0x6f8446,0x53652f,0x7d8a4c])); im.setColorAt(k,col);
+    k++;
+  }
+  im.count=k; im.castShadow=false; im.receiveShadow=true; scene.add(im);
+})();
+function bladeTex(){
+  const c=cnv(16,32),x=c.getContext("2d");x.clearRect(0,0,16,32);
+  x.fillStyle="#6f8446";x.beginPath();x.moveTo(6,32);x.quadraticCurveTo(2,14,8,0);x.quadraticCurveTo(14,14,10,32);x.closePath();x.fill();
+  return tex(c);
+}
+
+// hazard tape zig-zag across the site (the survey markers)
+hazardTape([[-9,0],[-3,3],[3,1.5],[9,4],[16,6]],0.85);
+hazardTape([[-8,12],[-1,14],[6,12.5],[14,15]],0.8);
+
+// =========================================================================
+//  CONTROLS
+// =========================================================================
+const orbit = new THREE.OrbitControls(camera, renderer.domElement);
+orbit.enableDamping=true; orbit.dampingFactor=0.06;
+orbit.target.set(-1,4,-3);
+orbit.maxPolarAngle=Math.PI*0.492; orbit.minDistance=6; orbit.maxDistance=110;
+orbit.update();
+
+const walk = new THREE.PointerLockControls(camera, renderer.domElement);
+const keys={}; addEventListener("keydown",e=>keys[e.code]=true); addEventListener("keyup",e=>keys[e.code]=false);
+let walkMode=false;
+const walkHelp=document.getElementById("walkhelp");
+const crosshair=document.getElementById("crosshair");
+
+function enterWalk(){
+  walkMode=true; document.getElementById("modeWalk").classList.add("on");
+  document.getElementById("modeOrbit").classList.remove("on");
+  orbit.enabled=false; walkHelp.style.display="flex";
+}
+function exitWalk(){
+  walkMode=false; document.getElementById("modeWalk").classList.remove("on");
+  document.getElementById("modeOrbit").classList.add("on");
+  orbit.enabled=true; walkHelp.style.display="none"; crosshair.style.display="none";
+  if(walk.isLocked) walk.unlock();
+}
+document.getElementById("modeWalk").onclick=enterWalk;
+document.getElementById("modeOrbit").onclick=exitWalk;
+document.getElementById("walkGo").onclick=()=>{ walk.lock(); };
+walk.addEventListener("lock",()=>{walkHelp.style.display="none";crosshair.style.display="block";
+  camera.position.y=groundH(camera.position.x,camera.position.z)+1.7;});
+walk.addEventListener("unlock",()=>{ if(walkMode){walkHelp.style.display="flex";crosshair.style.display="none";} });
+document.getElementById("modeOrbit").classList.add("on");
+
+const vel=new THREE.Vector3();
+function updateWalk(dt){
+  if(!walk.isLocked)return;
+  const sp=7*dt; vel.set(0,0,0);
+  if(keys.KeyW)vel.z+=1; if(keys.KeyS)vel.z-=1; if(keys.KeyA)vel.x-=1; if(keys.KeyD)vel.x+=1;
+  if(vel.lengthSq()>0){vel.normalize();walk.moveRight(vel.x*sp);walk.moveForward(vel.z*sp);}
+  // keep in bounds & on ground
+  const o=walk.getObject();
+  o.position.x=Math.max(-24,Math.min(24,o.position.x));
+  o.position.z=Math.max(-6,Math.min(30,o.position.z));
+  o.position.y=groundH(o.position.x,o.position.z)+1.7;
+}
+
+// =========================================================================
+//  VIEWPOINTS
+// =========================================================================
+const VIEWS=[
+  {name:"Panoramica", pos:[13,12,33], tgt:[-1,4,-3]},
+  {name:"Ingresso",   pos:[-5,2.5,15], tgt:[-13,4,1]},
+  {name:"Il nocciolo",pos:[11,2.6,17], tgt:[2,3,9]},
+  {name:"La torretta",pos:[10,4,11],   tgt:[6.5,6,-2]},
+  {name:"Muro a secco",pos:[1,2.6,9],  tgt:[10,3,20]},
+  {name:"Vista alta", pos:[10,32,32],  tgt:[0,2,2]},
+];
+const viewsEl=document.getElementById("views");
+let camAnim=null;
+VIEWS.forEach((v,i)=>{
+  const b=document.createElement("button"); b.className="chip"; b.textContent=v.name;
+  b.onclick=()=>{ if(walkMode)exitWalk(); setActiveChip(b); flyTo(v); };
+  if(i===0)b.classList.add("active");
+  viewsEl.appendChild(b);
+});
+function setActiveChip(b){viewsEl.querySelectorAll(".chip").forEach(c=>c.classList.remove("active"));b.classList.add("active");}
+function flyTo(v){
+  const p0=camera.position.clone(), t0=orbit.target.clone();
+  const p1=new THREE.Vector3(...v.pos), t1=new THREE.Vector3(...v.tgt);
+  camAnim={p0,t0,p1,t1,t:0,dur:1.25};
+}
+const easeIO=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+
+// =========================================================================
+//  SUN SLIDER
+// =========================================================================
+const sunSlider=document.getElementById("sun");
+const sunVal=document.getElementById("sunVal");
+function sunLabel(v){return v<20?"mattino":v<42?"tarda mattina":v<60?"mezzogiorno":v<80?"pomeriggio":"tramonto";}
+sunSlider.oninput=()=>{const v=+sunSlider.value; setSunLive(v/100); sunVal.textContent=sunLabel(v);};
+let liveT=0.62;
+function setSunLive(t){ // update sky+sun continuously, env on idle
+  liveT=t;
+  const elev=Math.sin(t*Math.PI)*58+3, azim=60+t*150;
+  const phi=(90-elev)*D2R, theta=azim*D2R;
+  sunSph.setFromSphericalCoords(1,phi,theta);
+  skyU.sunPosition.value.copy(sunSph);
+  sun.position.copy(sunSph).multiplyScalar(120);
+  const warm=1-Math.min(1,elev/40);
+  sun.color.setHSL(0.09-warm*0.035,0.55+warm*0.25,0.62);
+  sun.intensity=1.6+Math.min(1,elev/30)*2.4;
+  hemi.intensity=0.25+Math.min(1,elev/50)*0.30;
+  scene.fog.color.setHSL(0.34-warm*0.24,0.14+warm*0.22,0.70-warm*0.20);
+  renderer.toneMappingExposure=0.66+Math.min(1,elev/40)*0.22;
+  clearTimeout(setSunLive._t); setSunLive._t=setTimeout(refreshEnv,180);
+}
+
+// =========================================================================
+//  START
+// =========================================================================
+setSun(0.62);
+sunVal.textContent=sunLabel(62);
+document.getElementById("compass").style.display="block";
+
+let last=performance.now();
+function tick(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  // camera fly
+  if(camAnim){
+    camAnim.t+=dt/camAnim.dur; const k=easeIO(Math.min(1,camAnim.t));
+    camera.position.lerpVectors(camAnim.p0,camAnim.p1,k);
+    orbit.target.lerpVectors(camAnim.t0,camAnim.t1,k);
+    if(camAnim.t>=1)camAnim=null;
+  }
+  if(walkMode)updateWalk(dt); else orbit.update();
+  // breeze
+  const b=now*0.0006;
+  for(let i=0;i<breezy.length;i++){breezy[i].rotation.z=Math.sin(b+i)*0.012;}
+  // compass needle
+  const nd=document.getElementById("needle");
+  if(nd){ // north = -Z; bearing from camera azimuth
+    const dir=new THREE.Vector3(); camera.getWorldDirection(dir);
+    const ang=Math.atan2(dir.x,-dir.z); nd.setAttribute("transform","rotate("+(ang*180/Math.PI)+" 50 50)");
+  }
+  renderer.render(scene,camera);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// hide loader
+setTimeout(()=>document.getElementById("loader").classList.add("hidden"),650);
+
+addEventListener("resize",()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+addEventListener("keydown",e=>{if(e.code==="Escape"&&walkMode)exitWalk();});
+})();
+</script>
+</body>
+</html>
