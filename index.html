@@ -122,10 +122,10 @@
 </div>
 
 <div id="title" class="panel">
-  <div class="eyebrow">Rilievo · Corte esterna</div>
+  <div class="eyebrow">Rilievo · Zona piscina</div>
   <h1>Giardino della <em>villa</em></h1>
   <div class="meta">Via Francesco Nullo 4 — Genova</div>
-  <span class="tag" id="verTag">v0.1 · blockout</span>
+  <span class="tag" id="verTag">v0.2 · zona piscina</span>
 </div>
 
 <div id="tools" class="panel">
@@ -187,7 +187,7 @@ const pick = arr=>arr[(Math.random()*arr.length)|0];
 
 // ---- palette del luogo -------------------------------------------------
 const COL = {
-  crema:0xe4d9bd, cremaHi:0xefe7d0, cremaShadow:0xcdbf9d,
+  crema:0xd8c49c, cremaHi:0xe6d6b2, cremaShadow:0xbfad86,
   pink:0xe0b3a3, pinkHi:0xecc9bc,
   green:0x2f5d43, greenDk:0x1f3f2d,
   white:0xf3ecdc, stone:0x8f8a7a, stoneDk:0x6f6a5b,
@@ -215,10 +215,10 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xb9c2bf, 120, 420);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 2000);
-camera.position.set(13, 12, 33);
+camera.position.set(0, 1.7, 9);
 
 // ---- lights ------------------------------------------------------------
-const hemi = new THREE.HemisphereLight(0xbcd0f2, 0x3c3524, 0.35);
+const hemi = new THREE.HemisphereLight(0xaab7bc, 0x4a4230, 0.30);
 scene.add(hemi);
 
 const sun = new THREE.DirectionalLight(0xfff2d8, 3.1);
@@ -258,12 +258,12 @@ function setSun(t){ // t in 0..1  → morning..evening
   const warm = 1 - Math.min(1, elev/40);             // warmer near horizon
   sun.color.setHSL(0.09 - warm*0.03, 0.55+warm*0.25, 0.62);
   sun.intensity = 1.6 + Math.min(1,elev/30)*2.4;
-  hemi.intensity = 0.25 + Math.min(1,elev/50)*0.30;
+  hemi.intensity = 0.22 + Math.min(1,elev/50)*0.26;
   skyU.turbidity.value = 2.2 + warm*4;
   skyU.rayleigh.value = 2.4 - warm*1.0;
   const fogc = new THREE.Color().setHSL(0.34-warm*0.24, 0.14+warm*0.22, 0.70-warm*0.20);
   scene.fog.color.copy(fogc);
-  renderer.toneMappingExposure = 0.66 + Math.min(1,elev/40)*0.22;
+  renderer.toneMappingExposure = 0.58 + Math.min(1,elev/40)*0.18;
   refreshEnv();
 }
 let envPending=false;
@@ -296,20 +296,31 @@ function stuccoTex(hex, mottle){
 }
 function grassTex(){
   const c=cnv(512,512),x=c.getContext("2d");
-  x.fillStyle="#6f7a42";x.fillRect(0,0,512,512);
-  for(let i=0;i<20000;i++){
-    const g=["#586a30","#6f8040","#879a52","#4f5e2c","#9a8a54","#7c6a3e"][(Math.random()*6)|0];
-    x.strokeStyle=g;x.globalAlpha=0.5+Math.random()*0.5;x.lineWidth=1;
-    const px=Math.random()*512,py=Math.random()*512,a=(-0.4+Math.random()*0.8);
-    x.beginPath();x.moveTo(px,py);x.lineTo(px+Math.sin(a)*4,py-3-Math.random()*4);x.stroke();
+  // compacted ochre earth base (this garden is mostly bare ground)
+  x.fillStyle="#9c7f52";x.fillRect(0,0,512,512);
+  for(let i=0;i<1400;i++){ // earth mottle
+    x.fillStyle=pick(["#8a6d44","#a98a5c","#7a6038","#b39b70","#6e5636"]);
+    x.globalAlpha=0.12+Math.random()*0.18;
+    x.beginPath();x.arc(Math.random()*512,Math.random()*512,rand(2,10),0,7);x.fill();
   }
   x.globalAlpha=1;
-  // bare dirt patches
-  for(let i=0;i<26;i++){
-    x.fillStyle="rgba(150,120,80,"+(0.15+Math.random()*0.3)+")";
-    x.beginPath();x.ellipse(Math.random()*512,Math.random()*512,rand(10,46),rand(8,32),Math.random()*6,0,7);x.fill();
+  // irregular grass patches (not full coverage)
+  for(let p=0;p<14;p++){
+    const cx=Math.random()*512,cy=Math.random()*512,R=rand(40,120);
+    for(let i=0;i<3000;i++){
+      const a=Math.random()*6.28,r=Math.random()*R; const px=cx+Math.cos(a)*r,py=cy+Math.sin(a)*r;
+      if(px<0||px>512||py<0||py>512) continue;
+      x.strokeStyle=pick(["#586a30","#6f8040","#4f5e2c","#7c8a44","#88632f"]);
+      x.globalAlpha=0.35+Math.random()*0.5;x.lineWidth=1;
+      const aa=(-0.4+Math.random()*0.8);
+      x.beginPath();x.moveTo(px,py);x.lineTo(px+Math.sin(aa)*4,py-3-Math.random()*4);x.stroke();
+    }
   }
-  return tex(c,[10,10]);
+  x.globalAlpha=1;
+  // pale stones/gravel speckle
+  for(let i=0;i<500;i++){x.fillStyle=pick(["#cfc7b4","#b7ad98","#e0d8c6"]);
+    x.beginPath();x.arc(Math.random()*512,Math.random()*512,rand(0.6,2.2),0,7);x.fill();}
+  return tex(c,[9,9]);
 }
 function louverTex(hex){
   const c=cnv(64,128),x=c.getContext("2d"),base=new THREE.Color(hex);
@@ -355,7 +366,7 @@ const whiteMat = new THREE.MeshStandardMaterial({color:COL.white,roughness:0.7})
 const ironMat  = new THREE.MeshStandardMaterial({color:COL.iron,roughness:0.5,metalness:0.6});
 const glassMat = new THREE.MeshStandardMaterial({color:COL.glass,roughness:0.15,metalness:0.1,envMapIntensity:1.2});
 const woodMat  = new THREE.MeshStandardMaterial({color:COL.wood,roughness:0.85});
-const slateMat = new THREE.MeshStandardMaterial({color:0x484d4d,roughness:0.82,envMapIntensity:0.35});
+const slateMat = new THREE.MeshStandardMaterial({color:0x474c4c,roughness:0.85,envMapIntensity:0.22});
 const greenLouver = new THREE.MeshStandardMaterial({map:louverTex(0x2f5d43),roughness:0.6});
 const barkMat  = new THREE.MeshStandardMaterial({color:0x6a5237,roughness:0.95});
 
@@ -465,7 +476,7 @@ function makeBuilding(o){
   g.position.set(o.x,0,o.z);
   if(o.ry) g.rotation.y=o.ry;
   const w=o.w,d=o.d,h=o.h;
-  const wallMat=new THREE.MeshStandardMaterial({map:stuccoTex(o.color,0.5),roughness:0.94,envMapIntensity:0.55});
+  const wallMat=new THREE.MeshStandardMaterial({map:stuccoTex(o.color,0.5),roughness:0.95,envMapIntensity:0.3});
   const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wallMat);
   body.position.y=h/2; body.castShadow=true; body.receiveShadow=true;
   g.add(body);
@@ -551,7 +562,7 @@ function foliageMass(radius, tones, squash){
   g.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
   return g;
 }
-const foliageMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.96,flatShading:false,envMapIntensity:0.4});
+const foliageMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.96,flatShading:false,envMapIntensity:0.28});
 
 function treeHazel(x,z,scale){ // big multi-stem shrub-tree (nocciolo)
   scale=scale||1;
@@ -602,19 +613,25 @@ function treePine(x,z){ // pino domestico: bare trunk + flat umbrella
   }
   scene.add(g); breezy.push(g); return g;
 }
-function oleander(x,z){ // potato ad alberello (lollipop)
-  const h=rand(2.2,3.2);
+function oleander(x,z){ // potato ad alberello (lollipop) — olive, dense head
+  const h=rand(2.6,3.4), R=rand(1.4,1.8);
   const g=new THREE.Group(); g.position.set(x,groundH(x,z),z);
-  const t=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.11,h,6),barkMat); t.position.y=h/2; t.castShadow=true; g.add(t);
-  const ball=new THREE.Mesh(foliageMass(rand(1.1,1.5),[COL.oleander,0x4d7a56,0x35603f],1),foliageMat);
-  ball.position.y=h+0.3; ball.castShadow=true; g.add(ball);
-  // sparse pink blooms
-  if(Math.random()<0.7){
-    const blooms=new THREE.InstancedMesh(new THREE.SphereGeometry(0.08,5,4),
-      new THREE.MeshStandardMaterial({color:0xe58bb0,roughness:0.7}),14);
+  // 1-3 slightly leaning stems
+  const nst=1+((Math.random()*3)|0);
+  for(let i=0;i<nst;i++){const a=Math.random()*6.28;
+    const t=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.09,h,6),barkMat);
+    t.position.set(Math.cos(a)*0.08,h/2,Math.sin(a)*0.08); t.rotation.z=Math.cos(a)*0.06; t.castShadow=true; g.add(t);}
+  const tones=[COL.oleander,0x4a6f4c,0x2e4f38,0x577b52];
+  const ball=new THREE.Mesh(foliageMass(R,tones,0.95),foliageMat);
+  ball.position.y=h+R*0.5; ball.castShadow=true; g.add(ball);
+  for(let i=0;i<3;i++){const lobe=new THREE.Mesh(foliageMass(R*0.6,tones,1),foliageMat);
+    lobe.position.set(rand(-R*0.7,R*0.7),h+R*0.4+rand(-0.3,0.4),rand(-R*0.7,R*0.7)); lobe.castShadow=true; g.add(lobe);}
+  if(Math.random()<0.5){ // a few pink blooms
+    const blooms=new THREE.InstancedMesh(new THREE.SphereGeometry(0.09,5,4),
+      new THREE.MeshStandardMaterial({color:0xe08fb0,roughness:0.8}),10);
     const m=new THREE.Matrix4();
-    for(let i=0;i<14;i++){const a=Math.random()*6.28,b=Math.random()*3.14,r=rand(0.9,1.4);
-      m.makeTranslation(Math.sin(b)*Math.cos(a)*r,h+0.3+Math.cos(b)*r,Math.sin(b)*Math.sin(a)*r);blooms.setMatrixAt(i,m);}
+    for(let i=0;i<10;i++){const a=Math.random()*6.28,b=Math.random()*3.14,r=R*rand(0.8,1.05);
+      m.makeTranslation(Math.sin(b)*Math.cos(a)*r,h+R*0.5+Math.cos(b)*r,Math.sin(b)*Math.sin(a)*r);blooms.setMatrixAt(i,m);}
     g.add(blooms);
   }
   scene.add(g); breezy.push(g); return g;
@@ -650,7 +667,7 @@ function hedge(x1,z1,x2,z2,height,depth){
   const col=[];const c0=new THREE.Color();
   for(let i=0;i<p.count;i++){c0.set(pick([0x335126,0x3f6330,0x28431f,0x4a7133])).offsetHSL(0,0,(Math.random()-0.5)*0.06);col.push(c0.r,c0.g,c0.b);}
   geo.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
-  const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.96,envMapIntensity:0.4}));
+  const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.97,envMapIntensity:0.3}));
   m.position.set((x1+x2)/2,groundH((x1+x2)/2,(z1+z2)/2)+height/2,(z1+z2)/2);
   m.rotation.y=ang; m.castShadow=true; m.receiveShadow=true; scene.add(m); breezy.push(m); return m;
 }
@@ -703,21 +720,70 @@ function handrail(x1,z1,x2,z2){
     post.position.set(0,0.47,-len/2+i*(len/(n-1))); g.add(post);}
   g.position.set((x1+x2)/2,groundH((x1+x2)/2,(z1+z2)/2),(z1+z2)/2); g.rotation.y=ang; scene.add(g); return g;
 }
-// red-white hazard tape along a polyline of [x,z] points, at height y
-function hazardTape(pts,y){
-  y=y||0.9;
-  const mat=new THREE.MeshStandardMaterial({map:hazardStripeTex(),roughness:0.7,side:THREE.DoubleSide,transparent:true});
+// tape run (color:'rw' red-white cantiere, 'y' yellow) strung on thin rebar
+// posts, with a slight sag between posts — the signature site marker.
+const rebarMat=new THREE.MeshStandardMaterial({color:0x5b5346,roughness:0.6,metalness:0.55});
+function tapeRun(pts,y,color){
+  y=y||0.72;
+  const striped = color!=='y';
   for(let i=0;i<pts.length-1;i++){
     const [x1,z1]=pts[i],[x2,z2]=pts[i+1];
     const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),ang=Math.atan2(dx,dz);
-    const strip=new THREE.Mesh(new THREE.PlaneGeometry(len,0.07),mat);
-    strip.material.map=strip.material.map; // shared
+    const w = striped?0.075:0.05;
+    const seg=Math.max(6,Math.round(len*3));
+    const g=new THREE.PlaneGeometry(len,w,seg,1);
+    const p=g.attributes.position;
+    for(let v=0;v<p.count;v++){
+      const t=(p.getX(v)/len)+0.5;
+      p.setY(v, p.getY(v) - Math.sin(Math.PI*t)*0.11);   // gentle catenary sag
+    }
+    g.computeVertexNormals();
+    let mat;
+    if(striped){ const m=hazardStripeTex().clone(); m.needsUpdate=true; m.wrapS=THREE.RepeatWrapping; m.repeat.set(Math.max(3,len*3.5),1);
+      mat=new THREE.MeshStandardMaterial({map:m,roughness:0.8,side:THREE.DoubleSide,metalness:0}); }
+    else mat=new THREE.MeshStandardMaterial({color:0xe6c235,roughness:0.7,side:THREE.DoubleSide,metalness:0});
+    const strip=new THREE.Mesh(g,mat);
     const mx=(x1+x2)/2,mz=(z1+z2)/2;
     strip.position.set(mx,groundH(mx,mz)+y,mz); strip.rotation.y=ang+Math.PI/2; scene.add(strip);
-    // rebar post at each vertex
-    const post=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,y+0.25,5),new THREE.MeshStandardMaterial({color:0x555148,roughness:0.7,metalness:0.5}));
-    post.position.set(x1,groundH(x1,z1)+(y+0.25)/2,z1); scene.add(post);
+    // rebar post at start vertex
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.022,y+0.16,6),rebarMat);
+    post.position.set(x1,groundH(x1,z1)+(y+0.16)/2,z1); post.rotation.z=rand(-0.03,0.03); post.castShadow=true; scene.add(post);
   }
+  // final post
+  const [lx,lz]=pts[pts.length-1];
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.022,y+0.16,6),rebarMat);
+  post.position.set(lx,groundH(lx,lz)+(y+0.16)/2,lz); scene.add(post);
+}
+// small scattered stones + fallen tape scraps on the bare ground
+function scatterStones(x0,x1,z0,z1,n){
+  const geo=new THREE.IcosahedronGeometry(0.08,0);
+  const mat=new THREE.MeshStandardMaterial({color:0xb9b3a2,roughness:1,vertexColors:false});
+  const im=new THREE.InstancedMesh(geo,mat,n); const m=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(),pp=new THREE.Vector3(),e=new THREE.Euler();
+  const col=new THREE.Color();
+  for(let i=0;i<n;i++){const x=rand(x0,x1),z=rand(z0,z1);
+    pp.set(x,groundH(x,z)+0.02,z); e.set(rand(0,3),rand(0,6),rand(0,3)); q.setFromEuler(e);
+    const sc=rand(0.4,1.5); s.set(sc,sc*rand(0.5,0.9),sc); m.compose(pp,q,s); im.setMatrixAt(i,m);
+    col.set(pick([0xc7c1b0,0x9a9484,0xb0a894,0x8f8a7c])); im.setColorAt(i,col);
+  }
+  im.receiveShadow=true; scene.add(im);
+}
+let _hazardScrap=null;
+function tapeScrap(x,z){ // a short bit of tape lying on the ground
+  const m=hazardStripeTex().clone(); m.wrapS=THREE.RepeatWrapping; m.repeat.set(6,1);
+  const strip=new THREE.Mesh(new THREE.PlaneGeometry(rand(0.5,0.9),0.06,8,1),
+    new THREE.MeshStandardMaterial({map:m,roughness:0.9,side:THREE.DoubleSide}));
+  strip.rotation.x=-Math.PI/2; strip.rotation.z=rand(0,6);
+  strip.position.set(x,groundH(x,z)+0.02,z); scene.add(strip);
+}
+// white awning (tenda da sole) over a window on the crema facade (faces +Z)
+function awning(x,z,w,depth){
+  const g=new THREE.Group();
+  const mat=new THREE.MeshStandardMaterial({color:0xf1ede2,roughness:0.85,side:THREE.DoubleSide});
+  const top=new THREE.Mesh(new THREE.PlaneGeometry(w,depth), mat);
+  top.rotation.x=-Math.PI/2+0.42; top.position.set(0,0,depth*0.45); g.add(top);
+  const val=new THREE.Mesh(new THREE.PlaneGeometry(w,0.28), mat);   // scalloped valance (flat)
+  val.position.set(0,-0.22,depth*0.9); g.add(val);
+  g.position.set(x,3.7,z); scene.add(g); return g;
 }
 let _hazTex=null;
 function hazardStripeTex(){
@@ -729,92 +795,85 @@ function hazardStripeTex(){
 }
 
 // =========================================================================
-//  COMPOSE THE SCENE
+//  COMPOSE — "ZONA PISCINA"
+//  Anchor = the red/white taped rectangle, centred at the origin (long axis X).
+//  Layout (to confirm): N/+Z-  crema neighbour villa · E/+X  pittosporo hedge +
+//  tall cream flats · SE  cypresses+dry-stone wall+palms+pink flats ·
+//  W/-X  the PINK reference house with the big hazel.
 // =========================================================================
-// Main villa (crema, 4 storeys) along the north edge, garden face = +Z (south)
-const villa = makeBuilding({
-  x:0, z:-9, w:26, d:13, h:15.5, floors:4, color:COL.crema,
-  faces:['S','E','W'], colsFront:6, colsSide:3, arch:true, roofH:3.2
-});
-balcony(villa,0,4.0,6.5,12);
-turret(6.5,0,-2.2,1.5,11.5);   // polygonal bay on garden side
 
-// Pink lower wing (2 storeys) on the west, running south; garden face = +X (east)
-const wing = makeBuilding({
-  x:-16.5, z:2, w:9, d:14, h:8.2, floors:2, color:COL.pink,
+// ---- NORTH (+Z-, behind the pool): tall CREMA neighbour villa ----
+const villa = makeBuilding({
+  x:2, z:-12, w:28, d:13, h:15.5, floors:4, color:COL.crema,
+  faces:['S','E'], colsFront:7, colsSide:3, arch:true, roofH:3.2
+});
+turret(8,0,-5.2,1.5,11);                 // polygonal bay + pyramidal roof
+awning(-1.5,-5.35,3.4,3.0);              // white tende over ground windows
+awning(6.2,-5.35,3.2,2.2);
+railing(-8,-5.0,11,-5.0,1.15);           // low wall + black iron railing
+hedge(-8,-5.35, 11,-5.35, 1.0,0.7);      // clipped hedge behind the railing
+oleander(-4,-4.2); oleander(0.6,-4.2); oleander(4.6,-4.2); oleander(9,-4.3);
+
+// ---- EAST (+X): pittosporo hedge, tall cream modern building behind ----
+hedge(7.2,-4.5, 7.2,7.6, 1.75,1.2);
+makeBuilding({x:14,z:2,w:11,d:18,h:18,floors:6,color:0xd7c7ab,faces:['W','N'],colsFront:2,colsSide:5,roof:'none'});
+
+// ---- BACK corner (SE): cypresses + dry-stone wall + palms + pink flats ----
+treeCypress(4.6,8.4,12.5); treeCypress(6.3,8.8,13);
+dryWall(2,9.1,8.6,8.5,2.6);
+palm(8,8.7); palm(3.3,9.1);
+makeBuilding({x:14,z:12,w:12,d:10,h:15,floors:6,color:0xd39a86,faces:['W','N'],colsFront:2,colsSide:4,roof:'none'});
+
+// ---- WEST (-X): the PINK reference house + big hazel ----
+const casa = makeBuilding({
+  x:-13.5, z:1.5, w:9, d:15, h:8.4, floors:2, color:COL.pink,
   faces:['E','S','N'], colsFront:3, colsSide:2, arch:false, roofH:2.6
 });
-// chimney
-(function(){const ch=new THREE.Mesh(new THREE.BoxGeometry(1,2.2,1),new THREE.MeshStandardMaterial({color:COL.pinkHi,roughness:0.9}));
- ch.position.set(-18,9.4,-1);ch.castShadow=true;scene.add(ch);})();
+(function(){const ch=new THREE.Mesh(new THREE.BoxGeometry(1,2,1),new THREE.MeshStandardMaterial({color:COL.pinkHi,roughness:0.9}));
+ ch.position.set(-15,9.4,-1.5);ch.castShadow=true;scene.add(ch);})();
+treeHazel(-6.5,1.5,1.25);                // hazel in front of the pink house
+oleander(-7.5,-2.5); oleander(-7,4.6);
+treeHazel(10.6,6.6,0.7);                 // leafy shrub-tree by the flats (photo 4)
+shrub(-6,-4,0.8); shrub(7.7,-3.6,0.8); shrub(7.7,6.4,0.9);
 
-// Neighbour massing (kept simple, muted, pushed back as backdrop)
-makeBuilding({x:27,z:20,w:12,d:16,h:16,floors:6,color:0xc9b393,faces:['W','N'],colsFront:3,colsSide:4,roofH:1.2,roof:'none'});
-makeBuilding({x:-4,z:38,w:22,d:12,h:15,floors:6,color:0xc7ae98,faces:['N'],colsFront:6,roof:'none'});
+// ---- POOL rectangle: red-white cantiere tape on rebar posts ----
+const PX=3.6, PZ=2.4;                    // half-extents → 7.2 × 4.8 m
+tapeRun([[-PX,-PZ],[0,-PZ],[PX,-PZ],[PX,0],[PX,PZ],[0,PZ],[-PX,PZ],[-PX,0],[-PX,-PZ]],0.72,'rw');
+tapeRun([[-PX,PZ],[-7,4.6]],0.72,'rw');  // a run continuing across the lawn
+// yellow strand between the pool and the villa railing
+tapeRun([[-6,-3.5],[0,-3.4],[7,-3.5]],0.98,'y');
 
-// Flagstone path + green handrail along the pink wing (east base)
-path(-11.4,4,2.4,15,0);
-handrail(-10.4,-3,-10.4,12);
-
-// Boundary: iron railing on low wall (garden edge near wing), dry-stone wall at back
-railing(-10,-4,-10,10,1.25);
-dryWall(-9,20,10,21,2.7);
-dryWall(10,21,17,17,2.7);
-
-// =========================================================================
-//  PLANTING
-// =========================================================================
-treeHazel(1,10,1.15);           // the central multi-stem hazel
-treeHazel(-4,16,0.8);
-treeCypress(12,19.5,12); treeCypress(14,19,11); treeCypress(15.6,19.8,10.5);
-treePine(18,18);
-palm(16.5,17.5); palm(-7,19);
-oleander(-8,2); oleander(-8.5,6); oleander(12,7); oleander(13.5,10); oleander(-2,4); oleander(16,12);
-// pittosporum hedge lines
-hedge(6,15, 17,13, 1.7,1.0);   // hedge toward east neighbour
-hedge(-9,-3, -9,11, 1.5,0.9);  // low hedge along the railing
-shrub(-6,3); shrub(-5,7,0.9); shrub(14,8); shrub(15,10,1.1); shrub(-1,17,1.3); shrub(10,10);
-shrub(-7.5,10,0.8); shrub(17,15,1.2); shrub(4,17,1.0);
-
-// instanced grass tufts over the open lawn (foreground richness)
+// ---- bare ground: low weed clumps (ground-hugging), stones, tape scraps ----
 (function(){
-  const blade=new THREE.PlaneGeometry(0.16,0.5); blade.translate(0,0.25,0);
-  const N=4200;
-  const mat=new THREE.MeshStandardMaterial({color:0x5f7238,roughness:1,side:THREE.DoubleSide,
-    transparent:true,alphaTest:0.4,map:bladeTex()});
-  const im=new THREE.InstancedMesh(blade,mat,N);
-  const m=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(),p=new THREE.Vector3(),e=new THREE.Euler();
+  const geo=new THREE.IcosahedronGeometry(0.16,1);
+  const p=geo.attributes.position; for(let i=0;i<p.count;i++){ // flatten into a low tuft
+    p.setY(i, p.getY(i)*0.4 + 0.1); p.setX(i,p.getX(i)*rand(0.8,1.3)); p.setZ(i,p.getZ(i)*rand(0.8,1.3)); }
+  geo.computeVertexNormals();
+  const N=520;
+  const mat=new THREE.MeshStandardMaterial({color:0x5f6d33,roughness:1,envMapIntensity:0.25,flatShading:true});
+  const im=new THREE.InstancedMesh(geo,mat,N);
+  const m=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(),pp=new THREE.Vector3(),e=new THREE.Euler();
   const col=new THREE.Color(); let k=0;
   for(let i=0;i<N;i++){
-    const x=rand(-9,17), z=rand(-2,20);
-    // skip building footprints
-    if(x<-11.5 && z<9) continue;
-    p.set(x,groundH(x,z),z);
-    e.set(0,Math.random()*6.28,rand(-0.15,0.15)); q.setFromEuler(e);
-    const sc=rand(0.6,1.5); s.set(sc,sc*rand(0.8,1.4),sc);
-    m.compose(p,q,s); im.setMatrixAt(k, m);
-    col.set(pick([0x5f7238,0x6f8446,0x53652f,0x7d8a4c])); im.setColorAt(k,col);
-    k++;
+    const x=rand(-9,8), z=rand(-4.4,9);
+    if(z<-4.5||x>6.9||x<-8.6) continue;
+    if(Math.random()<0.35) continue;                // patchy — lots of bare earth
+    pp.set(x,groundH(x,z)+0.02,z); e.set(0,Math.random()*6.28,0); q.setFromEuler(e);
+    const sc=rand(0.6,1.6); s.set(sc,sc*rand(0.7,1.2),sc); m.compose(pp,q,s); im.setMatrixAt(k,m);
+    col.set(pick([0x5f6d33,0x6f7d40,0x53602c,0x7c8148,0x8a7a3e])); im.setColorAt(k,col); k++;
   }
-  im.count=k; im.castShadow=false; im.receiveShadow=true; scene.add(im);
+  im.count=k; im.receiveShadow=true; im.castShadow=false; scene.add(im);
 })();
-function bladeTex(){
-  const c=cnv(16,32),x=c.getContext("2d");x.clearRect(0,0,16,32);
-  x.fillStyle="#6f8446";x.beginPath();x.moveTo(6,32);x.quadraticCurveTo(2,14,8,0);x.quadraticCurveTo(14,14,10,32);x.closePath();x.fill();
-  return tex(c);
-}
-
-// hazard tape zig-zag across the site (the survey markers)
-hazardTape([[-9,0],[-3,3],[3,1.5],[9,4],[16,6]],0.85);
-hazardTape([[-8,12],[-1,14],[6,12.5],[14,15]],0.8);
+scatterStones(-9,8,-4.6,9,150);
+tapeScrap(0.5,1.2); tapeScrap(-2,-1); tapeScrap(3,3);
 
 // =========================================================================
 //  CONTROLS
 // =========================================================================
 const orbit = new THREE.OrbitControls(camera, renderer.domElement);
 orbit.enableDamping=true; orbit.dampingFactor=0.06;
-orbit.target.set(-1,4,-3);
-orbit.maxPolarAngle=Math.PI*0.492; orbit.minDistance=6; orbit.maxDistance=110;
+orbit.target.set(1,3.4,-5);
+orbit.maxPolarAngle=Math.PI*0.5; orbit.minDistance=2.5; orbit.maxDistance=60;
 orbit.update();
 
 const walk = new THREE.PointerLockControls(camera, renderer.domElement);
@@ -859,12 +918,11 @@ function updateWalk(dt){
 //  VIEWPOINTS
 // =========================================================================
 const VIEWS=[
-  {name:"Panoramica", pos:[13,12,33], tgt:[-1,4,-3]},
-  {name:"Ingresso",   pos:[-5,2.5,15], tgt:[-13,4,1]},
-  {name:"Il nocciolo",pos:[11,2.6,17], tgt:[2,3,9]},
-  {name:"La torretta",pos:[10,4,11],   tgt:[6.5,6,-2]},
-  {name:"Muro a secco",pos:[1,2.6,9],  tgt:[10,3,20]},
-  {name:"Vista alta", pos:[10,32,32],  tgt:[0,2,2]},
+  {name:"Zona piscina", pos:[0,1.7,9],    tgt:[1,3.4,-5]},
+  {name:"Lungo la siepe",pos:[-3,1.7,6.5],tgt:[7.2,1.7,-1]},
+  {name:"Verso il fondo",pos:[-1.5,1.7,6],tgt:[5.5,3,9]},
+  {name:"La casa rosa", pos:[3,1.6,4.5],  tgt:[-13.5,4,1]},
+  {name:"Dall'alto",    pos:[4,20,18],    tgt:[0,1,1]},
 ];
 const viewsEl=document.getElementById("views");
 let camAnim=null;
@@ -900,9 +958,9 @@ function setSunLive(t){ // update sky+sun continuously, env on idle
   const warm=1-Math.min(1,elev/40);
   sun.color.setHSL(0.09-warm*0.035,0.55+warm*0.25,0.62);
   sun.intensity=1.6+Math.min(1,elev/30)*2.4;
-  hemi.intensity=0.25+Math.min(1,elev/50)*0.30;
+  hemi.intensity=0.22+Math.min(1,elev/50)*0.26;
   scene.fog.color.setHSL(0.34-warm*0.24,0.14+warm*0.22,0.70-warm*0.20);
-  renderer.toneMappingExposure=0.66+Math.min(1,elev/40)*0.22;
+  renderer.toneMappingExposure=0.58+Math.min(1,elev/40)*0.18;
   clearTimeout(setSunLive._t); setSunLive._t=setTimeout(refreshEnv,180);
 }
 
